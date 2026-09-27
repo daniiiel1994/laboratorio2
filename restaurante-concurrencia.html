@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurrencia y Paralelismo en un Restaurante de Comida Rápida</title>
+<style>
+:root{
+  --navy:#0B2447;
+  --navy2:#14315C;
+  --amber:#F2A93B;
+  --amber-dim:#c98a24;
+  --bg:#F3F4F7;
+  --panel:#FFFFFF;
+  --ink:#0B2447;
+  --ink-soft:#4C5A72;
+  --line:#DCE1EA;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1220; --panel:#101B30; --ink:#EAF0FB; --ink-soft:#9FB0CC; --line:#22314D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1220; --panel:#101B30; --ink:#EAF0FB; --ink-soft:#9FB0CC; --line:#22314D;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Century Gothic","Apple Gothic","Questrial","Futura",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+header{
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  color:#fff; padding:2.4rem 1.5rem 2rem;
+}
+header .wrap{max-width:960px; margin:0 auto;}
+header h1{
+  font-size:clamp(1.5rem,3.6vw,2.2rem); margin:0 0 .4rem; line-height:1.15; font-weight:700;
+}
+header p{margin:0; color:#C9D6EC; max-width:64ch; font-size:1rem;}
+
+nav{
+  position:sticky; top:0; z-index:5; background:var(--panel);
+  border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top,0px);
+  overflow-x:auto;
+}
+nav .tabs{
+  display:flex; gap:.4rem; max-width:960px; margin:0 auto; padding:.6rem 1rem;
+}
+nav button{
+  flex:0 0 auto; padding:.55rem 1rem; border-radius:8px; border:1px solid transparent;
+  background:transparent; color:var(--ink-soft); font-family:inherit; font-size:.9rem;
+  cursor:pointer; white-space:nowrap; transition:background .15s, color .15s;
+}
+nav button.active{background:var(--navy); color:#fff;}
+nav button:not(.active):hover{background:var(--line);}
+
+main{max-width:960px; margin:0 auto; padding:2rem 1.2rem 4rem;}
+section{display:none;}
+section.active{display:block;}
+
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:1.6rem; margin-bottom:1.4rem;
+}
+h2{margin:0 0 .3rem; font-size:1.4rem;}
+.tag{font-size:.8rem; color:var(--amber-dim); font-weight:700; margin-bottom:.3rem; display:block;}
+.lede{color:var(--ink-soft); margin:0 0 1.4rem; max-width:66ch; line-height:1.55;}
+
+button.action{
+  font-family:inherit; background:var(--amber); color:var(--navy); border:none;
+  padding:.65rem 1.2rem; border-radius:8px; font-weight:700; cursor:pointer; font-size:.95rem;
+}
+button.action:hover{background:var(--amber-dim);}
+button.action:disabled{opacity:.5; cursor:default;}
+button.secondary{
+  font-family:inherit; background:transparent; color:var(--ink); border:1px solid var(--line);
+  padding:.65rem 1.1rem; border-radius:8px; cursor:pointer; font-size:.9rem; margin-left:.5rem;
+}
+
+.row{display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin-bottom:1rem;}
+
+.strip{display:flex; gap:3px; height:34px; margin:1rem 0;}
+.strip span{flex:1; border-radius:4px; background:var(--line);}
+.legend{display:flex; gap:1rem; font-size:.85rem; color:var(--ink-soft); flex-wrap:wrap;}
+.dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:.35rem; vertical-align:middle;}
+
+.bars{display:flex; align-items:flex-end; gap:2rem; height:140px; margin-top:1.2rem;}
+.bar-col{display:flex; flex-direction:column; align-items:center; gap:.4rem; width:130px;}
+.bar{width:56px; background:var(--navy); border-radius:6px 6px 0 0; transition:height .4s ease;}
+.bar.par{background:var(--amber);}
+.bar-label{font-size:.85rem; color:var(--ink-soft); text-align:center;}
+.stat{font-weight:700; font-size:1.05rem;}
+
+.cpu-track{display:flex; gap:.7rem; flex-wrap:wrap; margin:1rem 0 1.4rem;}
+.proc{
+  width:78px; height:78px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--line); font-weight:700; color:var(--ink-soft); transition:all .25s; text-align:center; font-size:.85rem; padding:.3rem;
+}
+.proc.on{background:var(--navy); color:#fff; border-color:var(--navy); transform:translateY(-4px);}
+
+.counter-box{display:flex; gap:1.6rem; align-items:center; flex-wrap:wrap; margin-top:.8rem;}
+.counter-display{background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:1rem 1.4rem; min-width:200px;}
+.counter-display .n{font-size:2rem; font-weight:700;}
+.counter-display .label{font-size:.8rem; color:var(--ink-soft);}
+.warn{color:#B4432B;}
+.ok{color:#1F7A4D;}
+
+.buffer{display:flex; gap:.5rem; margin:1rem 0; flex-wrap:wrap;}
+.slot{
+  width:50px; height:50px; border:2px dashed var(--line); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; font-size:1rem; color:var(--ink-soft);
+}
+.slot.filled{border-style:solid; border-color:var(--amber); background:var(--amber); color:var(--navy);}
+
+footer{text-align:center; color:var(--ink-soft); font-size:.85rem; padding:1.5rem 1rem 3rem;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Concurrencia y paralelismo en un restaurante de comida rápida</h1>
+    <p>Los mismos cinco conceptos de sistemas operativos, aplicados a la operación real de un local: caja, cocina, freidora y pantalla de pedidos (KDS).</p>
+  </div>
+</header>
+
+<nav><div class="tabs" id="tabs"></div></nav>
+<main id="main"></main>
+<footer>Simulador aplicado — operación de un restaurante de comida rápida</footer>
+
+<script>
+const secciones = [
+  {
+    id:"concurrencia", nombre:"El cajero", tag:"CONCURRENCIA",
+    titulo:"Un solo cajero, varios clientes",
+    intro:"Con una sola caja, el cajero no atiende a un cliente por completo antes de pasar al siguiente: toma el pedido del cliente 1, cobra al cliente 2 mientras el 1 decide su bebida, y entrega el cambio al cliente 3. Es una sola persona repartiendo su atención, no varias cajas funcionando a la vez.",
+    render:renderConcurrencia
+  },
+  {
+    id:"paralelismo", nombre:"Cierre de caja", tag:"PARALELISMO",
+    titulo:"Cuadrar el total de ventas del día",
+    intro:"Al cerrar el turno hay que sumar el total de todos los pedidos del día (impuestos incluidos) para el reporte contable. Con miles de tickets, un solo cajero calculando uno por uno tarda; repartir los tickets entre varias cajas/estaciones que calculan al mismo tiempo (varios núcleos reales del computador) termina antes.",
+    render:renderParalelismo
+  },
+  {
+    id:"multiprogramacion", nombre:"La parrilla", tag:"MULTIPROGRAMACIÓN",
+    titulo:"Una parrilla, varios pedidos en turnos",
+    intro:"La parrilla solo puede voltear una cosa a la vez, pero hay 4 pedidos esperando (hamburguesa, tocineta, pollo, vegetariana). El cocinero le da a cada uno una rodaja corta de atención y va rotando entre ellos, para que ninguno se queme y todos avancen.",
+    render:renderMultiprogramacion
+  },
+  {
+    id:"sincronizacion", nombre:"La freidora", tag:"SINCRONIZACIÓN",
+    titulo:"Dos cocineros, una sola freidora",
+    intro:"La freidora tiene una capacidad fija de canastillas. Si dos cocineros consultan '¿cuántas canastillas libres hay?' al mismo tiempo y ambos meten papas creyendo que había espacio, se sobrecarga el aceite. Un candado (lock) obliga a que solo un cocinero consulte y reserve espacio a la vez.",
+    render:renderSincronizacion
+  },
+  {
+    id:"recursos", nombre:"Pantalla de cocina", tag:"RECURSOS COMPARTIDOS",
+    titulo:"La pantalla de pedidos (KDS)",
+    intro:"La caja registra pedidos y la cocina los va tomando de la misma pantalla (Kitchen Display System). Esa pantalla solo tiene espacio para un número limitado de tickets visibles: si se llena, caja debe esperar para enviar el siguiente; si está vacía, cocina espera a que entre un pedido nuevo.",
+    render:renderRecursos
+  },
+];
+
+const tabsEl = document.getElementById("tabs");
+const mainEl = document.getElementById("main");
+
+secciones.forEach((s)=>{
+  const b = document.createElement("button");
+  b.textContent = s.nombre;
+  b.onclick = ()=>mostrar(s.id);
+  b.dataset.id = s.id;
+  tabsEl.appendChild(b);
+
+  const sec = document.createElement("section");
+  sec.id = "sec-"+s.id;
+  sec.innerHTML = `<div class="card"><span class="tag">${s.tag}</span><h2>${s.titulo}</h2><p class="lede">${s.intro}</p><div class="demo"></div></div>`;
+  mainEl.appendChild(sec);
+});
+
+function mostrar(id){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.id===id));
+  document.querySelectorAll("main section").forEach(s=>s.classList.toggle("active", s.id==="sec-"+id));
+  const s = secciones.find(s=>s.id===id);
+  const host = document.querySelector("#sec-"+id+" .demo");
+  if(!host.dataset.built){ s.render(host); host.dataset.built = "1"; }
+}
+
+/* ---------- 1. Concurrencia: el cajero atiende 3 clientes intercalados ---------- */
+function renderConcurrencia(host){
+  const colores = ["#0B2447","#F2A93B","#5B8AC9"];
+  const nombres = ["Cliente 1","Cliente 2","Cliente 3"];
+  host.innerHTML = `
+    <div class="row"><button class="action" id="c-play">Simular turno de caja</button></div>
+    <div class="strip" id="c-strip"></div>
+    <div class="legend">
+      ${nombres.map((n,i)=>`<span><span class="dot" style="background:${colores[i]}"></span>${n}</span>`).join("")}
+    </div>`;
+  const strip = host.querySelector("#c-strip");
+  const secuencia = [0,1,2,0,2,1,1,0,2,0,1,2];
+  strip.innerHTML = secuencia.map(()=>"<span></span>").join("");
+  const celdas = [...strip.children];
+  celdas.forEach(c=>c.style.background="var(--line)");
+
+  host.querySelector("#c-play").onclick = async (e)=>{
+    e.target.disabled = true;
+    for(let i=0;i<celdas.length;i++){
+      celdas[i].style.background = colores[secuencia[i]];
+      await esperar(160);
+    }
+    e.target.disabled = false;
+  };
+}
+
+/* ---------- 2. Paralelismo: cuadre de caja con Web Workers ---------- */
+function renderParalelismo(host){
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="p-run">Cuadrar 400.000 tickets del día</button>
+      <span id="p-status" style="color:var(--ink-soft); font-size:.9rem;"></span>
+    </div>
+    <div class="bars">
+      <div class="bar-col"><div class="bar" id="p-bar-seq" style="height:2px;"></div><div class="bar-label">Una sola caja calculando<br><span class="stat" id="p-t-seq">—</span></div></div>
+      <div class="bar-col"><div class="bar par" id="p-bar-par" style="height:2px;"></div><div class="bar-label" id="p-workers-label">Varias cajas en paralelo<br><span class="stat" id="p-t-par">—</span></div></div>
+    </div>`;
+
+  // Cada "ticket" es un número de pedido; el trabajo real es contar cuántos tickets
+  // corresponden a números primos, como sustituto de un cálculo de cuadre pesado.
+  const workerCode = function(){
+    function esPrimo(n){
+      if(n<2) return false;
+      if(n<4) return true;
+      if(n%2===0) return false;
+      for(let i=3;i*i<=n;i+=2){ if(n%i===0) return false; }
+      return true;
+    }
+    onmessage = function(e){
+      const [ini,fin] = e.data;
+      let c=0;
+      for(let n=ini;n<fin;n++){ if(esPrimo(n)) c++; }
+      postMessage(c);
+    };
+  };
+  const blob = new Blob(["("+workerCode.toString()+")()"], {type:"application/javascript"});
+  const workerUrl = URL.createObjectURL(blob);
+  const LIMITE = 400000;
+  const N = Math.min(navigator.hardwareConcurrency||4, 8);
+  host.querySelector("#p-workers-label").innerHTML = `Varias cajas en paralelo (${N})<br><span class="stat" id="p-t-par">—</span>`;
+
+  function contarSecuencial(limite){
+    function esPrimo(n){
+      if(n<2) return false; if(n<4) return true; if(n%2===0) return false;
+      for(let i=3;i*i<=n;i+=2){ if(n%i===0) return false; }
+      return true;
+    }
+    const t0 = performance.now();
+    let c=0; for(let n=2;n<limite;n++){ if(esPrimo(n)) c++; }
+    return {c, t: performance.now()-t0};
+  }
+
+  function contarParalelo(limite, n){
+    const t0 = performance.now();
+    const paso = Math.ceil((limite-2)/n);
+    let recibidos=0, total=0;
+    return new Promise(resolve=>{
+      for(let i=0;i<n;i++){
+        const ini = 2+i*paso, fin = Math.min(2+(i+1)*paso, limite);
+        const w = new Worker(workerUrl);
+        w.onmessage = (e)=>{
+          total += e.data; recibidos++;
+          w.terminate();
+          if(recibidos===n) resolve({c: total, t: performance.now()-t0});
+        };
+        w.postMessage([ini, fin]);
+      }
+    });
+  }
+
+  host.querySelector("#p-run").onclick = async (e)=>{
+    e.target.disabled = true;
+    document.getElementById("p-status").textContent = "Cuadrando caja…";
+    await esperar(30);
+    const seq = contarSecuencial(LIMITE);
+    document.getElementById("p-t-seq").textContent = seq.t.toFixed(0)+" ms";
+    document.getElementById("p-bar-seq").style.height = "120px";
+
+    const par = await contarParalelo(LIMITE, N);
+    document.getElementById("p-t-par").textContent = par.t.toFixed(0)+" ms";
+    const alturaPar = Math.max(8, Math.min(120, 120*(par.t/seq.t)));
+    document.getElementById("p-bar-par").style.height = alturaPar+"px";
+
+    document.getElementById("p-status").textContent =
+      `Cuadre verificado sobre ${seq.c} tickets clave · mejora ≈ ${(seq.t/par.t).toFixed(2)}× con ${N} cajas en paralelo`;
+    e.target.disabled = false;
+  };
+}
+
+/* ---------- 3. Multiprogramación: turnos en la parrilla ---------- */
+function renderMultiprogramacion(host){
+  host.innerHTML = `
+    <div class="row"><button class="action" id="m-play">Iniciar rotación de la parrilla</button></div>
+    <div class="cpu-track" id="m-track"></div>
+    <div class="legend">Cada pedido recibe una rodaja de tiempo en la parrilla antes de ceder el turno al siguiente.</div>`;
+  const track = host.querySelector("#m-track");
+  ["Hambur-guesa","Toci-neta","Pollo","Vegetar-iana"].forEach(p=>{
+    const d = document.createElement("div");
+    d.className = "proc"; d.textContent = p;
+    track.appendChild(d);
+  });
+  const procs = [...track.children];
+  host.querySelector("#m-play").onclick = async (e)=>{
+    e.target.disabled = true;
+    for(let ronda=0; ronda<2; ronda++){
+      for(const p of procs){
+        procs.forEach(x=>x.classList.remove("on"));
+        p.classList.add("on");
+        await esperar(280);
+      }
+    }
+    procs.forEach(x=>x.classList.remove("on"));
+    e.target.disabled = false;
+  };
+}
+
+/* ---------- 4. Sincronización: candado en la freidora ---------- */
+function renderSincronizacion(host){
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="s-nolock">Sin candado (200 solicitudes)</button>
+      <button class="action" id="s-lock">Con candado (200 solicitudes)</button>
+      <button class="secondary" id="s-reset">Reiniciar</button>
+    </div>
+    <div class="counter-box">
+      <div class="counter-display"><div class="n" id="s-value">0</div><div class="label">Canastillas ocupadas en la freidora</div></div>
+      <div id="s-msg" style="max-width:34ch; font-size:.9rem;"></div>
+    </div>`;
+  let valor = 0;
+  const valEl = host.querySelector("#s-value");
+  const msgEl = host.querySelector("#s-msg");
+
+  async function correr(conLock){
+    [...host.querySelectorAll("button")].forEach(b=>b.disabled=true);
+    valor = 0; valEl.textContent = 0; msgEl.textContent = "";
+    const N = 200;
+    if(conLock){
+      for(let i=0;i<N;i++){ valor += 1; }
+      valEl.textContent = valor;
+      msgEl.innerHTML = `<span class="ok">Correcto:</span> cada cocinero reservó su canastilla antes de que otro consultara el espacio libre.`;
+    } else {
+      const tareas = [];
+      for(let i=0;i<N;i++){
+        tareas.push((async ()=>{
+          const leido = valor;
+          await esperar(Math.random()*4);
+          valor = leido + 1;
+        })());
+      }
+      await Promise.all(tareas);
+      valEl.textContent = valor;
+      const perdidos = N - valor;
+      msgEl.innerHTML = perdidos>0
+        ? `<span class="warn">Se perdieron ${perdidos} reservas:</span> dos cocineros vieron el mismo número de canastillas libres antes de que el otro actualizara el total.`
+        : `Esta vez coincidió, pero el riesgo de sobrecargar la freidora sigue ahí — repite la prueba.`;
+    }
+    [...host.querySelectorAll("button")].forEach(b=>b.disabled=false);
+  }
+
+  host.querySelector("#s-nolock").onclick = ()=>correr(false);
+  host.querySelector("#s-lock").onclick = ()=>correr(true);
+  host.querySelector("#s-reset").onclick = ()=>{ valor=0; valEl.textContent=0; msgEl.textContent=""; };
+}
+
+/* ---------- 5. Recursos compartidos: pantalla de pedidos (KDS) ---------- */
+function renderRecursos(host){
+  const CAP = 6;
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="r-prod">Caja: enviar pedido</button>
+      <button class="action" id="r-cons">Cocina: tomar pedido</button>
+    </div>
+    <div class="buffer" id="r-buffer"></div>
+    <div id="r-msg" style="font-size:.9rem; color:var(--ink-soft);">Pantalla KDS: ${CAP} tickets visibles como máximo.</div>`;
+  const bufEl = host.querySelector("#r-buffer");
+  for(let i=0;i<CAP;i++){
+    const s = document.createElement("div"); s.className="slot"; bufEl.appendChild(s);
+  }
+  const slots = [...bufEl.children];
+  let items = 0;
+  const msg = host.querySelector("#r-msg");
+
+  host.querySelector("#r-prod").onclick = ()=>{
+    if(items>=CAP){ msg.innerHTML = `<span class="warn">Pantalla llena:</span> caja debe esperar a que cocina despache un ticket.`; return; }
+    slots[items].classList.add("filled"); slots[items].textContent = "🎫";
+    items++;
+    msg.textContent = `Pedido enviado a cocina (${items}/${CAP}).`;
+  };
+  host.querySelector("#r-cons").onclick = ()=>{
+    if(items<=0){ msg.innerHTML = `<span class="warn">Pantalla vacía:</span> cocina debe esperar a que caja registre un pedido nuevo.`; return; }
+    items--;
+    slots[items].classList.remove("filled"); slots[items].textContent = "";
+    msg.textContent = `Pedido tomado por cocina (${items}/${CAP}).`;
+  };
+}
+
+function esperar(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+mostrar("concurrencia");
+</script>
+</body>
+</html>

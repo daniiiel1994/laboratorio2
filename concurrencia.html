@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conceptos Fundamentales de Concurrencia</title>
+<style>
+:root{
+  --navy:#0B2447;
+  --navy2:#14315C;
+  --amber:#F2A93B;
+  --amber-dim:#c98a24;
+  --bg:#F3F4F7;
+  --panel:#FFFFFF;
+  --ink:#0B2447;
+  --ink-soft:#4C5A72;
+  --line:#DCE1EA;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1220; --panel:#101B30; --ink:#EAF0FB; --ink-soft:#9FB0CC; --line:#22314D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1220; --panel:#101B30; --ink:#EAF0FB; --ink-soft:#9FB0CC; --line:#22314D;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Century Gothic","Apple Gothic","Questrial","Futura",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+header{
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  color:#fff; padding:2.4rem 1.5rem 2rem;
+}
+header .wrap{max-width:920px; margin:0 auto;}
+header h1{
+  font-size:clamp(1.6rem,4vw,2.4rem); margin:0 0 .4rem; line-height:1.15; font-weight:700;
+}
+header p{margin:0; color:#C9D6EC; max-width:60ch; font-size:1rem;}
+
+nav{
+  position:sticky; top:0; z-index:5; background:var(--panel);
+  border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top,0px);
+  overflow-x:auto;
+}
+nav .tabs{
+  display:flex; gap:.4rem; max-width:920px; margin:0 auto; padding:.6rem 1rem;
+}
+nav button{
+  flex:0 0 auto; padding:.55rem 1rem; border-radius:8px; border:1px solid transparent;
+  background:transparent; color:var(--ink-soft); font-family:inherit; font-size:.92rem;
+  cursor:pointer; white-space:nowrap; transition:background .15s, color .15s;
+}
+nav button.active{background:var(--navy); color:#fff;}
+nav button:not(.active):hover{background:var(--line);}
+
+main{max-width:920px; margin:0 auto; padding:2rem 1.2rem 4rem;}
+section{display:none;}
+section.active{display:block;}
+
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:1.6rem; margin-bottom:1.4rem;
+}
+h2{margin:0 0 .5rem; font-size:1.5rem;}
+.lede{color:var(--ink-soft); margin:0 0 1.4rem; max-width:62ch; line-height:1.55;}
+
+button.action{
+  font-family:inherit; background:var(--amber); color:var(--navy); border:none;
+  padding:.65rem 1.2rem; border-radius:8px; font-weight:700; cursor:pointer; font-size:.95rem;
+}
+button.action:hover{background:var(--amber-dim);}
+button.action:disabled{opacity:.5; cursor:default;}
+button.secondary{
+  font-family:inherit; background:transparent; color:var(--navy); border:1px solid var(--line);
+  padding:.65rem 1.1rem; border-radius:8px; cursor:pointer; font-size:.9rem; margin-left:.5rem;
+}
+:root[data-theme="dark"] button.secondary, body:not([data-theme]) button.secondary{color:var(--ink);}
+
+.row{display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin-bottom:1rem;}
+
+/* Concurrencia: interleaved strip */
+.strip{display:flex; gap:3px; height:34px; margin:1rem 0;}
+.strip span{flex:1; border-radius:4px; background:var(--line);}
+.legend{display:flex; gap:1rem; font-size:.85rem; color:var(--ink-soft); flex-wrap:wrap;}
+.dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:.35rem; vertical-align:middle;}
+
+/* Paralelismo results */
+.bars{display:flex; align-items:flex-end; gap:2rem; height:140px; margin-top:1.2rem;}
+.bar-col{display:flex; flex-direction:column; align-items:center; gap:.4rem; width:110px;}
+.bar{width:56px; background:var(--navy); border-radius:6px 6px 0 0; transition:height .4s ease;}
+.bar.par{background:var(--amber);}
+.bar-label{font-size:.85rem; color:var(--ink-soft); text-align:center;}
+.stat{font-weight:700; font-size:1.05rem;}
+
+/* Multiprogramación queue */
+.cpu-track{display:flex; gap:.7rem; flex-wrap:wrap; margin:1rem 0 1.4rem;}
+.proc{
+  width:70px; height:70px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--line); font-weight:700; color:var(--ink-soft); transition:all .25s;
+}
+.proc.on{background:var(--navy); color:#fff; border-color:var(--navy); transform:translateY(-4px);}
+
+/* Sincronización counter */
+.counter-box{
+  display:flex; gap:1.6rem; align-items:center; flex-wrap:wrap; margin-top:.8rem;
+}
+.counter-display{
+  background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:1rem 1.4rem; min-width:190px;
+}
+.counter-display .n{font-size:2rem; font-weight:700;}
+.counter-display .label{font-size:.8rem; color:var(--ink-soft); text-transform:none;}
+.warn{color:#B4432B;}
+.ok{color:#1F7A4D;}
+
+/* Recursos compartidos buffer */
+.buffer{display:flex; gap:.5rem; margin:1rem 0;}
+.slot{
+  width:46px; height:46px; border:2px dashed var(--line); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:var(--ink-soft);
+}
+.slot.filled{border-style:solid; border-color:var(--amber); background:var(--amber); color:var(--navy);}
+
+footer{text-align:center; color:var(--ink-soft); font-size:.85rem; padding:1.5rem 1rem 3rem;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Conceptos fundamentales de concurrencia</h1>
+    <p>Cinco ideas base de sistemas operativos, cada una con una demostración que puedes ejecutar en tu propio navegador.</p>
+  </div>
+</header>
+
+<nav><div class="tabs" id="tabs"></div></nav>
+
+<main id="main"></main>
+
+<footer>Demostraciones interactivas — Sistemas Operativos</footer>
+
+<script>
+const secciones = [
+  {
+    id:"concurrencia", nombre:"Concurrencia",
+    titulo:"Concurrencia",
+    intro:"Varias tareas avanzan en el mismo intervalo de tiempo, repartiéndose la atención de un mismo núcleo. No corren literalmente a la vez: el sistema operativo las intercala en fragmentos muy cortos.",
+    render:renderConcurrencia
+  },
+  {
+    id:"paralelismo", nombre:"Paralelismo",
+    titulo:"Paralelismo",
+    intro:"Varias tareas se ejecutan realmente al mismo tiempo, en núcleos distintos. Aquí lo comprobamos contando números primos: una vez en un solo hilo y otra repartiendo el trabajo entre varios Web Workers.",
+    render:renderParalelismo
+  },
+  {
+    id:"multiprogramacion", nombre:"Multiprogramación",
+    titulo:"Multiprogramación",
+    intro:"Varios procesos conviven en el sistema y se turnan el uso del procesador en rodajas de tiempo (round-robin), aunque solo haya un núcleo disponible.",
+    render:renderMultiprogramacion
+  },
+  {
+    id:"sincronizacion", nombre:"Sincronización",
+    titulo:"Sincronización",
+    intro:"Cuando varios procesos modifican la misma variable sin coordinarse, se pueden perder actualizaciones (condición de carrera). Un candado (lock) obliga a que solo uno entre a la sección crítica a la vez.",
+    render:renderSincronizacion
+  },
+  {
+    id:"recursos", nombre:"Recursos Compartidos",
+    titulo:"Recursos compartidos",
+    intro:"Un búfer de tamaño fijo compartido entre un productor y un consumidor: si está lleno, el productor debe esperar; si está vacío, el consumidor debe esperar.",
+    render:renderRecursos
+  },
+];
+
+const tabsEl = document.getElementById("tabs");
+const mainEl = document.getElementById("main");
+
+secciones.forEach((s,i)=>{
+  const b = document.createElement("button");
+  b.textContent = s.nombre;
+  b.onclick = ()=>mostrar(s.id);
+  b.dataset.id = s.id;
+  tabsEl.appendChild(b);
+
+  const sec = document.createElement("section");
+  sec.id = "sec-"+s.id;
+  sec.innerHTML = `<div class="card"><h2>${s.titulo}</h2><p class="lede">${s.intro}</p><div class="demo"></div></div>`;
+  mainEl.appendChild(sec);
+});
+
+function mostrar(id){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.id===id));
+  document.querySelectorAll("main section").forEach(s=>s.classList.toggle("active", s.id==="sec-"+id));
+  const s = secciones.find(s=>s.id===id);
+  const host = document.querySelector("#sec-"+id+" .demo");
+  if(!host.dataset.built){ s.render(host); host.dataset.built = "1"; }
+}
+
+/* ---------- 1. Concurrencia: franja intercalada ---------- */
+function renderConcurrencia(host){
+  const colores = ["#0B2447","#F2A93B","#5B8AC9"];
+  const nombres = ["Tarea A","Tarea B","Tarea C"];
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="c-play">Simular reparto del CPU</button>
+    </div>
+    <div class="strip" id="c-strip"></div>
+    <div class="legend">
+      ${nombres.map((n,i)=>`<span><span class="dot" style="background:${colores[i]}"></span>${n}</span>`).join("")}
+    </div>`;
+  const strip = host.querySelector("#c-strip");
+  const secuencia = [0,1,2,0,2,1,1,0,2,0,1,2];
+  strip.innerHTML = secuencia.map(()=>"<span></span>").join("");
+  const celdas = [...strip.children];
+  celdas.forEach(c=>c.style.background="var(--line)");
+
+  host.querySelector("#c-play").onclick = async (e)=>{
+    e.target.disabled = true;
+    for(let i=0;i<celdas.length;i++){
+      celdas[i].style.background = colores[secuencia[i]];
+      await esperar(160);
+    }
+    e.target.disabled = false;
+  };
+}
+
+/* ---------- 2. Paralelismo: Web Workers contando primos ---------- */
+function renderParalelismo(host){
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="p-run">Ejecutar comparación</button>
+      <span id="p-status" style="color:var(--ink-soft); font-size:.9rem;"></span>
+    </div>
+    <div class="bars">
+      <div class="bar-col"><div class="bar" id="p-bar-seq" style="height:2px;"></div><div class="bar-label">Secuencial<br><span class="stat" id="p-t-seq">—</span></div></div>
+      <div class="bar-col"><div class="bar par" id="p-bar-par" style="height:2px;"></div><div class="bar-label" id="p-workers-label">Paralelo<br><span class="stat" id="p-t-par">—</span></div></div>
+    </div>`;
+
+  const workerCode = function(){
+    function esPrimo(n){
+      if(n<2) return false;
+      if(n<4) return true;
+      if(n%2===0) return false;
+      for(let i=3;i*i<=n;i+=2){ if(n%i===0) return false; }
+      return true;
+    }
+    onmessage = function(e){
+      const [ini,fin] = e.data;
+      let c=0;
+      for(let n=ini;n<fin;n++){ if(esPrimo(n)) c++; }
+      postMessage(c);
+    };
+  };
+  const blob = new Blob(["("+workerCode.toString()+")()"], {type:"application/javascript"});
+  const workerUrl = URL.createObjectURL(blob);
+  const LIMITE = 400000;
+  const N = Math.min(navigator.hardwareConcurrency||4, 8);
+  host.querySelector("#p-workers-label").innerHTML = `Paralelo (${N} workers)<br><span class="stat" id="p-t-par">—</span>`;
+
+  function contarSecuencial(limite){
+    function esPrimo(n){
+      if(n<2) return false; if(n<4) return true; if(n%2===0) return false;
+      for(let i=3;i*i<=n;i+=2){ if(n%i===0) return false; }
+      return true;
+    }
+    const t0 = performance.now();
+    let c=0; for(let n=2;n<limite;n++){ if(esPrimo(n)) c++; }
+    return {c, t: performance.now()-t0};
+  }
+
+  function contarParalelo(limite, n){
+    const t0 = performance.now();
+    const paso = Math.ceil((limite-2)/n);
+    let recibidos=0, total=0;
+    return new Promise(resolve=>{
+      for(let i=0;i<n;i++){
+        const ini = 2+i*paso, fin = Math.min(2+(i+1)*paso, limite);
+        const w = new Worker(workerUrl);
+        w.onmessage = (e)=>{
+          total += e.data; recibidos++;
+          w.terminate();
+          if(recibidos===n) resolve({c: total, t: performance.now()-t0});
+        };
+        w.postMessage([ini, fin]);
+      }
+    });
+  }
+
+  host.querySelector("#p-run").onclick = async (e)=>{
+    e.target.disabled = true;
+    document.getElementById("p-status").textContent = "Calculando…";
+    await esperar(30);
+    const seq = contarSecuencial(LIMITE);
+    document.getElementById("p-t-seq").textContent = seq.t.toFixed(0)+" ms";
+    document.getElementById("p-bar-seq").style.height = "120px";
+
+    const par = await contarParalelo(LIMITE, N);
+    document.getElementById("p-t-par").textContent = par.t.toFixed(0)+" ms";
+    const alturaPar = Math.max(8, Math.min(120, 120*(par.t/seq.t)));
+    document.getElementById("p-bar-par").style.height = alturaPar+"px";
+
+    document.getElementById("p-status").textContent =
+      `${seq.c} primos hallados · speedup ≈ ${(seq.t/par.t).toFixed(2)}× con ${N} workers`;
+    e.target.disabled = false;
+  };
+}
+
+/* ---------- 3. Multiprogramación: round-robin visual ---------- */
+function renderMultiprogramacion(host){
+  host.innerHTML = `
+    <div class="row"><button class="action" id="m-play">Iniciar reparto por turnos</button></div>
+    <div class="cpu-track" id="m-track"></div>
+    <div class="legend">Cada proceso recibe una rodaja de tiempo del procesador antes de ceder el turno al siguiente.</div>`;
+  const track = host.querySelector("#m-track");
+  ["P1","P2","P3","P4"].forEach(p=>{
+    const d = document.createElement("div");
+    d.className = "proc"; d.textContent = p;
+    track.appendChild(d);
+  });
+  const procs = [...track.children];
+  host.querySelector("#m-play").onclick = async (e)=>{
+    e.target.disabled = true;
+    for(let ronda=0; ronda<2; ronda++){
+      for(const p of procs){
+        procs.forEach(x=>x.classList.remove("on"));
+        p.classList.add("on");
+        await esperar(280);
+      }
+    }
+    procs.forEach(x=>x.classList.remove("on"));
+    e.target.disabled = false;
+  };
+}
+
+/* ---------- 4. Sincronización: condición de carrera ---------- */
+function renderSincronizacion(host){
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="s-nolock">Incrementar sin Lock (x200)</button>
+      <button class="action" id="s-lock">Incrementar con Lock (x200)</button>
+      <button class="secondary" id="s-reset">Reiniciar</button>
+    </div>
+    <div class="counter-box">
+      <div class="counter-display"><div class="n" id="s-value">0</div><div class="label">Valor del contador</div></div>
+      <div id="s-msg" style="max-width:32ch; font-size:.9rem;"></div>
+    </div>`;
+  let valor = 0;
+  const valEl = host.querySelector("#s-value");
+  const msgEl = host.querySelector("#s-msg");
+
+  async function correr(conLock){
+    [...host.querySelectorAll("button")].forEach(b=>b.disabled=true);
+    valor = 0; valEl.textContent = 0; msgEl.textContent = "";
+    const N = 200;
+    if(conLock){
+      // Con Lock: la lectura y escritura ocurren de forma atómica (sin "await" entre medio)
+      for(let i=0;i<N;i++){ valor += 1; }
+      valEl.textContent = valor;
+      msgEl.innerHTML = `<span class="ok">Correcto:</span> las 200 operaciones se aplicaron en orden, sin interrupciones.`;
+    } else {
+      // Sin Lock: se simula que cada tarea LEE, espera un instante (cede el turno) y luego ESCRIBE,
+      // igual que varios hilos reales que se entrelazan entre leer y escribir.
+      const tareas = [];
+      for(let i=0;i<N;i++){
+        tareas.push((async ()=>{
+          const leido = valor;
+          await esperar(Math.random()*4);
+          valor = leido + 1;
+        })());
+      }
+      await Promise.all(tareas);
+      valEl.textContent = valor;
+      const perdidos = N - valor;
+      msgEl.innerHTML = perdidos>0
+        ? `<span class="warn">Se perdieron ${perdidos} incrementos:</span> dos tareas leyeron el mismo valor antes de que la otra escribiera.`
+        : `Esta vez no se perdió ninguno, pero el riesgo sigue presente — repite la prueba.`;
+    }
+    [...host.querySelectorAll("button")].forEach(b=>b.disabled=false);
+  }
+
+  host.querySelector("#s-nolock").onclick = ()=>correr(false);
+  host.querySelector("#s-lock").onclick = ()=>correr(true);
+  host.querySelector("#s-reset").onclick = ()=>{ valor=0; valEl.textContent=0; msgEl.textContent=""; };
+}
+
+/* ---------- 5. Recursos compartidos: búfer acotado ---------- */
+function renderRecursos(host){
+  const CAP = 6;
+  host.innerHTML = `
+    <div class="row">
+      <button class="action" id="r-prod">Producir</button>
+      <button class="action" id="r-cons">Consumir</button>
+    </div>
+    <div class="buffer" id="r-buffer"></div>
+    <div id="r-msg" style="font-size:.9rem; color:var(--ink-soft);">Búfer compartido: ${CAP} espacios.</div>`;
+  const bufEl = host.querySelector("#r-buffer");
+  for(let i=0;i<CAP;i++){
+    const s = document.createElement("div"); s.className="slot"; bufEl.appendChild(s);
+  }
+  const slots = [...bufEl.children];
+  let items = 0;
+  const msg = host.querySelector("#r-msg");
+
+  host.querySelector("#r-prod").onclick = ()=>{
+    if(items>=CAP){ msg.innerHTML = `<span class="warn">Búfer lleno:</span> el productor debe esperar a que se consuma algo.`; return; }
+    slots[items].classList.add("filled"); slots[items].textContent = "●";
+    items++;
+    msg.textContent = `Elemento producido (${items}/${CAP}).`;
+  };
+  host.querySelector("#r-cons").onclick = ()=>{
+    if(items<=0){ msg.innerHTML = `<span class="warn">Búfer vacío:</span> el consumidor debe esperar a que se produzca algo.`; return; }
+    items--;
+    slots[items].classList.remove("filled"); slots[items].textContent = "";
+    msg.textContent = `Elemento consumido (${items}/${CAP}).`;
+  };
+}
+
+function esperar(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+mostrar("concurrencia");
+</script>
+</body>
+</html>
